@@ -37,7 +37,6 @@ using namespace cv;
 *           void getgaussianArray()，获取高斯核
 *           Mat& gaussianMerge()，对图像进行高斯滤波
 *           void GaussianFilter(Mat& image)，对单通道高斯滤波
-*           void myZeros(Mat& mat)，在图像周围一圈进行补零操作
 *           ~myGaussianFilter()，析构函数，释放内存
 */
 class myGaussianFilter
@@ -89,7 +88,6 @@ public:
 
 
 private:
-    void myZeros(Mat& mat);//没用到
     void GaussianFilter(Mat& image);
 };
 
@@ -129,40 +127,6 @@ void myGaussianFilter::getgaussianArray()
                gaussianArray[i][j] /= gaussianSum;
            }
     }
-}
-
-
-
-/************************补零操作*************************/
-/**
- * 函数名：  myZeros
- * 参数：   Mat& mat
- * 返回值： 无
- * 功能：   在图像周围一圈进行补零操作
- * ***************************************
- * 思路：
- * 1.扩宽图像尺寸
- * 2.主要利用for循环将边缘补零（简单粗暴）
- */
-void myGaussianFilter::myZeros(Mat& mat)
-{
-    //1.先扩宽图像
-    mat.rows+=2;
-    mat.cols+=2;
-
-    //2.再补零
-    //第一行补零
-    for(int i=0;i<mat.cols;i++)
-        mat.at<Vec3b>(0,i)={0,0,0};
-    //最后一行补零
-    for(int i=0;i<mat.cols;i++)
-        mat.at<Vec3b>(mat.rows-1,i)={0,0,0};
-    //第一列补零
-    for(int i=0;i<mat.rows;i++)
-        mat.at<Vec3b>(i,0)={0,0,0};
-    //最后一列补零
-    for(int i=0;i<mat.rows;i++)
-        mat.at<Vec3b>(i,mat.cols-1)={0,0,0};
 }
 
 
