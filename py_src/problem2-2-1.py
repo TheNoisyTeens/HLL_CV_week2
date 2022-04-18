@@ -42,16 +42,13 @@ def color2gray(color_img):
     return gray_img  # 返回灰度图
 
 
-# *****************************************************************************************************
-
-
 # **********************************将RGB彩色图转换为HSV图*************************************************
 '''
 函数名：  color2hsv
 参数：    color_img，读取到的RGB彩色图
 返回值：  hsv_img，最终得出的HSV图
 功能：    将RGB彩色图转换为HSV图
-*********************************************
+************************************************
 思路：
     1.通道分离
     2.创建三个二维矩阵存储H、S、V三通道的值
@@ -104,9 +101,6 @@ def color2hsv(img):
     return H, S, V  # 返回H，S，V三通道
 
 
-# ******************************************************************************************************
-
-
 if __name__ == '__main__':
     # 1.读取图像
     color_img = cv2.imread("./lena.jpg")
@@ -124,63 +118,3 @@ if __name__ == '__main__':
     cv2.imshow("hsv image", hsv_img)
 
     cv2.waitKey(0)
-
-'''
-# 原代码--rgb2hsv
-def color2hsv(color_img):
-    size_h = color_img.shape[0]  # 获取图像宽像素
-    size_w = color_img.shape[1]  # 获取图像长像素
-
-    B = color_img[:, :, 0]  # 获取R通道--二维矩阵
-    G = color_img[:, :, 1]  # 获取G通道--二维矩阵
-    R = color_img[:, :, 2]  # 获取B通道--二维矩阵
-
-    # 创建三个二维矩阵存储H、S、V三通道的值
-    H = np.zeros((size_h, size_w), dtype=np.uint8)
-    S = np.zeros((size_h, size_w), dtype=np.uint8)
-    V = np.zeros((size_h, size_w), dtype=np.uint8)
-
-    # H通道计算
-    for i in range(size_h):
-        for j in range(size_w):
-            rgb_max = max(R[i, j], R[i, j], B[i, j])
-            rgb_min = min(R[i, j], R[i, j], B[i, j])
-
-            # V 通道值
-            V[i, j] = rgb_max
-
-            # S 通道值
-            if max == 0:
-                S[i, j] = 0
-            else:
-                S[i, j] = 1 - rgb_min / rgb_max
-
-            # H 通道值
-            if rgb_max == rgb_min:
-                H[i, j] = 0
-            elif V[i, j] == R[i, j]:
-                if G[i, j] >= B[i, j]:
-                    H[i, j] = (60 * ((G[i, j]) - B[i, j]) / (V[i, j] - rgb_min))
-                else:
-                    H[i, j] = (60 * ((G[i, j]) - B[i, j]) / (V[i, j] - rgb_min)) + 360
-            elif V[i, j] == G[i, j]:
-                H[i, j] = 60 * ((B[i, j]) - R[i, j]) / (V[i, j] - rgb_min) + 120
-            elif V[i, j] == B[i, j]:
-                H[i, j] = 60 * ((R[i, j]) - G[i, j]) / (V[i, j] - rgb_min) + 240
-            H[i, j] = H[i, j] / 2
-
-            # 将H、S、V二维矩阵转换为三维矩阵
-            H_t = H.reshape((size_h, size_w, 1))
-            S_t = S.reshape((size_h, size_w, 1))
-            V_t = V.reshape((size_h, size_w, 1))
-
-            # 合并三个矩阵
-            hsv_img = np.concatenate((H_t, S_t, V_t), 2)
-
-            return hsv_img #返回HSV图
-
-
-   # main中调用
-   hsv_img = color2hsv(color_img)
-   cv2.imshow("hsv image", hsv_img)
-'''

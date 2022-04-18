@@ -23,9 +23,8 @@ using namespace cv;
 #define pi 3.141592653589793
 
 
-
 //创建一个类进行高斯滤波
-/**********************class myGaussianFilter********************************/
+/************************************class myGaussianFilter****************************************/
 /**
 * 类名：myGaussianFilter
 * 类成员属性：Mat img，要进行高斯滤波的图像
@@ -99,16 +98,20 @@ private:
  * 返回值： 无
  * 功能：   获取高斯核
  * ***************************************
+ * 思路：
+ * 1.准备工作：获取中心坐标值
+ * 2.将坐标值代入公式中，初步得到卷积核
+ * 3.将卷积核归一化
  */
 void myGaussianFilter::getgaussianArray()
 {
-    //获取中心坐标值
+    //1.获取中心坐标值
     int center_i, center_j;
     center_i = center_j = gaussianSize / 2;
 
     double gaussianSum=0.0f;//存储初步得出的高斯核的和
 
-    //初步计算高斯核
+    //2.初步计算高斯核
     for (int i = 0; i < gaussianSize; i++ )
     {
            for (int j = 0; j < gaussianSize; j++)
@@ -119,7 +122,7 @@ void myGaussianFilter::getgaussianArray()
                gaussianSum += gaussianArray[i][j];
            }
     }
-    //归一化处理
+    //3.归一化处理
     for (int i = 0; i < gaussianSize; i++)
     {
            for (int j = 0; j < gaussianSize; j++)
@@ -138,12 +141,12 @@ void myGaussianFilter::getgaussianArray()
  * 功能：   对单通道高斯滤波
  * ***************************************
  * 思路：
- * 创建一个临时Mat对象存放卷积操作后的数据
- * 遍历除边缘外的每一个像素点，进行卷积操作
+ * 1.创建一个临时Mat对象存放卷积操作后的数据
+ * 2.遍历除边缘外的每一个像素点，进行卷积操作
  */
 void myGaussianFilter::GaussianFilter(Mat& image)
 {
-
+	//准备工作
     int img_h=image.rows;//获取像素长
     int img_w=image.cols;//获取像素宽
 
