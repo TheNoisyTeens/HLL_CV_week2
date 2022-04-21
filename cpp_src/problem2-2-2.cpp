@@ -1,16 +1,13 @@
 /**
- * @file      problem2_2_2.cpp
- * @author    zhangmin(3273749257@qq.com)*
+ * @file      problem2-2-2.cpp
+ * @author    zhangmin(3273749257@qq.com)
  * @brief     对图像进行高斯滤波
- * @version   0.1
- * @date      2022-04-17
+ * @version   0.2
+ * @date      2022-04-18
  * @copyright Copyright (c) 2022
  */
 
-/**
-*不足:
-* 边缘没有进行卷积操作
-*/
+
 
 #include<iostream>
 #include<opencv2/opencv.hpp>
@@ -19,75 +16,63 @@
 using namespace std;
 using namespace cv;
 
-//pi宏定义
-#define pi 3.141592653589793
+
 
 
 //创建一个类进行高斯滤波
-/************************************class myGaussianFilter****************************************/
+/**********************class myGaussianFilter********************************/
 /**
 * 类名：myGaussianFilter
-* 类成员属性：Mat img，要进行高斯滤波的图像
-*           double **gaussianArray，高斯核
-*           int gaussianSize，高斯核大小，size*size
+* 类成员属性：Mat src，要进行高斯滤波的图像
+*           int img_h，图像 像素长
+*           int img_w，图像 像素宽
+*           int gaussianSize_h，高斯核长
+*           int gaussianSize_w，高斯核宽
 *           double gaussianSigma，高斯核方差
 * 类成员函数：
-*           myGaussianFilter(Mat& _img,int _size,double _sigma)，构造函数，初始化类成员属性
+*           myGaussianFilter(Mat& _img,int gaussianSize_h,int gauaasianSize_w,double _sigma)，构造函数，初始化类成员属性
 *           void getgaussianArray()，获取高斯核
 *           Mat& gaussianMerge()，对图像进行高斯滤波
-*           void GaussianFilter(Mat& image)，对单通道高斯滤波
-*           ~myGaussianFilter()，析构函数，释放内存
 */
 class myGaussianFilter
 {
 private:
-    Mat img;//待处理的图像
-    double **gaussianArray;//高斯核
-    int gaussianSize;//高斯核大小size*size
+    /* 图像 */
+    Mat src;//待处理的图像
+    int img_h;//图像 像素长
+    int img_w;//图像 像素长
+
+    /* 高斯核 */
+    Mat gaussianKernel;//高斯核
+    int gaussianSize_h;//高斯核长
+    int gaussianSize_w;//高斯核宽
     double gaussianSigma;//高斯核方差
 
 public:
     //构造函数
-    myGaussianFilter(Mat& _img,int _size,double _sigma):gaussianSize(_size),gaussianSigma(_sigma)
+    myGaussianFilter(Mat& _img,int h,int w,double _sigma):
+        gaussianSigma(_sigma),gaussianSize_h(h),gaussianSize_w(w)
     {
-        //图像
-        img=_img;
+        /* 图像 */
+        src=_img;
+        //获取图像长和宽
+        img_h=src.rows;
+        img_w=src.cols;
 
-        //构建高斯二维数组
-        gaussianArray= new double*[gaussianSize];
-        for (int i = 0; i < gaussianSize; i++)
-        {
-               gaussianArray[i] = new double[gaussianSize];
-        }
-
-        //初始化高斯数组
-        for (int i = 0; i < gaussianSize; i++ )
-        {
-               for (int j = 0; j < gaussianSize; j++)
-               {
-                   gaussianArray[i][j] = 0;
-               }
-        }
+        /* 初始化高斯核 */
+        //(1)获取高斯核的Size
+        Size gaussianSize;
+        gaussianSize.height=gaussianSize_h;
+        gaussianSize.width=gaussianSize_w;
+        //(2)创建高斯核
+        gaussianKernel.create(gaussianSize,CV_64FC1);
+        //(3)初始化高斯核(填充0)
+        gaussianKernel=cv::Mat::zeros(gaussianSize,gaussianKernel.type());
     }
-
-    void getgaussianArray();
-    Mat& gaussianMerge();
-
-    //析构函数
-    ~myGaussianFilter()
-    {
-        if(gaussianArray)
-            delete []gaussianArray;
-        for (int i = 0; i < gaussianSize; i++)
-        {
-            if(gaussianArray[i] )
-                delete []gaussianArray[i];
-        }
-    }
-
+    Mat GaussianFilter();
 
 private:
-    void GaussianFilter(Mat& image);
+    void getgaussianKernel();
 };
 
 
@@ -99,124 +84,143 @@ private:
  * 功能：   获取高斯核
  * ***************************************
  * 思路：
- * 1.准备工作：获取中心坐标值
- * 2.将坐标值代入公式中，初步得到卷积核
- * 3.将卷积核归一化
+ * 1.取gaussianArray[1][1]的位置为中心，坐标（0，0）；
+ * 2.坐标为(i-center_i,j-center_j)，用x、y取代，将坐标代入二维高斯函数获取初步的高斯核
+ * 3.将高斯核归一化
  */
-void myGaussianFilter::getgaussianArray()
+void myGaussianFilter::getgaussianKernel()
 {
-    //1.获取中心坐标值
-    int center_i, center_j;
-    center_i = center_j = gaussianSize / 2;
+    // [1] 准备工作
+    // [1-1] 获取中心坐标值
+    int center_i= gaussianSize_h / 2;
+    int center_j= gaussianSize_w / 2;
+    // [1-2] 存储初步得出的高斯核的和
+    double gaussianSum=0.0f;
+    // [1-3] 存储坐标值
+    double x, y;
 
-    double gaussianSum=0.0f;//存储初步得出的高斯核的和
+    // [2] 初步计算高斯核
+    // [2-1] 遍历每一个坐标
+    for (int i = 0; i < gaussianSize_h; ++i)
+    {
+        y = pow(i - center_i, 2);
+        for (int j = 0; j < gaussianSize_w; ++j)
+        {
+            // [2-2] 套公式计算每一个坐标的值
+            x = pow(j - center_j, 2);
+            //因为最后都要归一化的，常数部分可以不计算，也减少了运算量
+            double g = exp(-(x + y) / (2 * gaussianSigma*gaussianSigma));
+            gaussianKernel.at<double>(i, j) = g;
+            gaussianSum += g;//求高斯核的和
+        }
+    }
 
-    //2.初步计算高斯核
-    for (int i = 0; i < gaussianSize; i++ )
-    {
-           for (int j = 0; j < gaussianSize; j++)
-           {
-               //中心坐标(0,0)，将坐标依次代入二维高斯函数，得到高斯核
-               gaussianArray[i][j] = exp( -(1.0f)* ( ((i-center_i)*(i-center_i)+(j-center_j)*(j-center_j)) /
-                                                     (2.0f*gaussianSigma*gaussianSigma) ));
-               gaussianSum += gaussianArray[i][j];
-           }
-    }
-    //3.归一化处理
-    for (int i = 0; i < gaussianSize; i++)
-    {
-           for (int j = 0; j < gaussianSize; j++)
-           {
-               gaussianArray[i][j] /= gaussianSum;
-           }
-    }
+    // [3] 归一化
+    gaussianKernel = gaussianKernel / gaussianSum;
 }
+
 
 
 /************************对单通道高斯滤波*************************/
 /**
  * 函数名：  GaussianFilter
- * 参数：   Mat& image，需要进行高斯滤波的单通道图像
- * 返回值： 无
- * 功能：   对单通道高斯滤波
- * ***************************************
- * 思路：
- * 1.创建一个临时Mat对象存放卷积操作后的数据
- * 2.遍历除边缘外的每一个像素点，进行卷积操作
- */
-void myGaussianFilter::GaussianFilter(Mat& image)
-{
-	//准备工作
-    int img_h=image.rows;//获取像素长
-    int img_w=image.cols;//获取像素宽
-
-    //1.将传入的单通道image拷贝一份
-    Mat temp=image.clone();
-
-    //2.遍历每一个像素点
-    for (int i = 0; i < img_h; i++ )
-    {
-           for (int j = 0; j < img_w; j++)
-           {
-               //边缘除外
-               if (i > (gaussianSize / 2) - 1 && j > (gaussianSize / 2) - 1 &&
-                              i <img_h - (gaussianSize / 2) && j < img_w - (gaussianSize / 2))
-               {
-                   //进行卷积操作
-                   double sum=0;
-                   for (int k = 0; k < gaussianSize; k++ )
-                   {
-                          for (int l = 0; l < gaussianSize; l++)
-                          {
-                              sum += image.ptr<uchar>(i-k+(gaussianSize/2))[j-l+(gaussianSize/2)] * gaussianArray[k][l];
-                          }
-                   }
-
-                    //将求出的sum放入临时Mat对象中
-                    temp.ptr<uchar>(i)[j] = sum;
-             }
-    }
-    //3.将处理好的单通道temp克隆给image
-    image = temp.clone();
-  }
-
-}
-
-/************************对图像进行高斯滤波*************************/
-/**
- * 函数名：  gaussianMerge
  * 参数：   无
- * 返回值： Mat& final_img，高斯滤波后的图像
+ * 返回值： Mat dst，高斯模糊后的图像
  * 功能：   对图像进行高斯滤波
+ * 补充：   可以是单通道，也可以是三通道
  * ***************************************
  * 思路：
- * 1.将RGB彩色图通道分离
- * 2.将分离出的三个通道分别进行高斯滤波
- * 3.将处理后的三个通道合并
+ * 1.主要准备工作
+ *  (1)获取高斯核
+ *  (2)初始化一个图像，存放高斯滤波后的结果，用到zeros()函数
+ *  (3)边界填充src，存储到新图像Newsrc中，用到copyMakeBorder
+ *
+ * 2.遍历每一个像素点,进行卷积处理
+ *  要判断单通道还是三通道
+ *  (1)对九宫格进项操作
+ *  (1)对求出的和进行范围限定
+ *  (2)将求出的和放入图像对应通道中
+ *  这里单通道对数值操作，三通道对向量操作
+ *
+ * 3.返回处理后的图像
  */
-Mat& myGaussianFilter::gaussianMerge()
+Mat myGaussianFilter::GaussianFilter()
 {
+    // [1] 准备工作
+    // [1-1] 获取高斯核
+    getgaussianKernel();
+    // [1-2] 获取中心坐标值,为高斯滤波做准备
+    int center_i = (gaussianKernel.rows - 1) / 2;
+    int center_j = (gaussianKernel.cols - 1) / 2;
+    // [1-3] 初始化一个图像，存放高斯滤波后的结果
+    Mat dst = cv::Mat::zeros(src.size(),src.type());
+    // [1-4] 边界填充src，存储到Newsrc中
+    Mat Newsrc;
+    copyMakeBorder(src, Newsrc, center_i, center_i, center_j, center_j, cv::BORDER_REPLICATE);//边界复制
 
-    Mat final_img;
-    //1.图片通道分离
-    vector<Mat> channels;
-    split(img, channels);
+    // [2] 高斯滤波
+    // [2-1] 遍历每一个像素点
+    for (int i = center_i; i < src.rows + center_i;++i)
+    {
+        for (int j = center_j; j < src.cols + center_j; ++j)
+        {
+           // [2-2] 卷积处理
+           double sum[3] = { 0 };//存放卷积核与图像九宫格相乘的和(单通道或三通道)
+           // 嵌套两层for循环遍历高斯掩膜
+           for (int r = -center_i; r <= center_i; ++r)
+           {
+               for (int c = -center_j; c <= center_j; ++c)
+               {
+                   /* 通道数为1 */
+                   if (src.channels() == 1)
+                       sum[0] = sum[0] + Newsrc.at<uchar>(i + r, j + c) * gaussianKernel.at<double>(r + center_i, c + center_j);
 
-    //2.高斯滤波处理
-     for (int i = 0; i < 3; i++)
-     {
-          GaussianFilter(channels[i]);
-      }
-     //3.合并返回
-     merge(channels, final_img);
-     return final_img;
+                   /* 通道数为3 */
+                   else if (src.channels() == 3)
+                   {
+                       // 利用Vec3b向量对三通道进行处理
+                       Vec3b rgb = Newsrc.at<cv::Vec3b>(i+r,j + c);
+                       sum[0] = sum[0] + rgb[0] * gaussianKernel.at<double>(r + center_i, c + center_j);//B
+                       sum[1] = sum[1] + rgb[1] * gaussianKernel.at<double>(r + center_i, c + center_j);//G
+                       sum[2] = sum[2] + rgb[2] * gaussianKernel.at<double>(r + center_i, c + center_j);//R
+                   }
+               }
+           }
 
+           // [2-3] 对值进行限制0-255
+           for (int k = 0; k < src.channels(); ++k)
+           {
+               if (sum[k] < 0)
+                   sum[k] = 0;
+               else if (sum[k]>255)
+                   sum[k] = 255;
+           }
+
+
+           // [2-4] 将处理完后的值放入对应通道
+           /* 通道数为1 */
+           if (src.channels() == 1)
+               dst.at<uchar>(i - center_i, j - center_j) = static_cast<uchar>(sum[0]);
+
+           /* 通道数为3 */
+           else if (src.channels() == 3)
+           {
+               Vec3b rgb = { static_cast<uchar>(sum[0]), static_cast<uchar>(sum[1]), static_cast<uchar>(sum[2]) };//这里进行了类型转换
+               dst.at<Vec3b>(i-center_i, j-center_j) = rgb;
+           }
+        }
+    }
+
+    // [3] 返回高斯模糊后的图像
+    return dst;
 }
+
 
 
 
 int main()
 {
+    // 1.读取图像
     Mat img=imread("D:/Picture/lena.jpg");
     if(img.empty())//未获取到图像
     {
@@ -224,10 +228,15 @@ int main()
         return 0;
     }
 
-    myGaussianFilter test(img,3,2);
-    test.getgaussianArray();
-    imshow("GaussianFilter",test.gaussianMerge());
-    cout<<"test"<<endl;
+    // 2.实现高斯滤波
+    myGaussianFilter test(img,3,3,sqrt(2));
+    Mat temp=test.GaussianFilter();
+
+    // 3.显示图像
+    imshow("src",img);
+    imshow("GaussianFilter",temp);
+
+    // 4.等待按键操作
     waitKey(0);
     return 0;
 }
